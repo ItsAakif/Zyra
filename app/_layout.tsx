@@ -17,7 +17,8 @@ import {
 } from '@expo-google-fonts/space-grotesk';
 import * as SplashScreen from 'expo-splash-screen';
 import { authService, AuthState } from '@/lib/auth';
-import { Platform } from 'react-native';
+import { Platform, View, Text, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -61,9 +62,22 @@ export default function RootLayout() {
     hideSplashScreen();
   }, [fontsLoaded, fontError, authState.isLoading]);
 
-  // Don't render anything until fonts are loaded and auth is initialized
+  // Show loading screen while fonts and auth are loading
   if ((!fontsLoaded && !fontError) || authState.isLoading) {
-    return null;
+    return (
+      <View style={styles.loadingContainer}>
+        <LinearGradient
+          colors={['#8B5CF6', '#EC4899']}
+          style={styles.loadingGradient}
+        >
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>Z</Text>
+          </View>
+          <Text style={styles.appName}>Zyra</Text>
+          <Text style={styles.tagline}>Global Payments Made Simple</Text>
+        </LinearGradient>
+      </View>
+    );
   }
 
   return (
@@ -78,3 +92,53 @@ export default function RootLayout() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+  },
+  loadingGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: 'white',
+    fontFamily: Platform.select({
+      ios: 'SpaceGrotesk-Bold',
+      android: 'SpaceGrotesk-Bold',
+      default: 'sans-serif',
+    }),
+  },
+  appName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: 'white',
+    fontFamily: Platform.select({
+      ios: 'SpaceGrotesk-Bold',
+      android: 'SpaceGrotesk-Bold',
+      default: 'sans-serif',
+    }),
+    marginBottom: 8,
+  },
+  tagline: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: Platform.select({
+      ios: 'Inter-Regular',
+      android: 'Inter-Regular',
+      default: 'sans-serif',
+    }),
+  },
+});

@@ -5,8 +5,13 @@
   "private": true,
   "scripts": {
     "dev": "EXPO_NO_TELEMETRY=1 npx expo start",
+    "start": "npx expo start",
+    "android": "npx expo start --android",
+    "ios": "npx expo start --ios",
+    "web": "npx expo start --web",
     "build:web": "npx expo export --platform web",
-    "lint": "npx expo lint"
+    "lint": "npx expo lint",
+    "tunnel": "npx expo start --tunnel"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
