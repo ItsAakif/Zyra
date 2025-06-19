@@ -24,79 +24,57 @@ import {
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authService } from '@/lib/auth';
-import { algorandService } from '@/lib/algorand';
-import { PaymentProcessor } from '@/lib/payment-processor';
 
 export default function HomeScreen() {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [balances, setBalances] = useState({
-    algo: 0,
-    zyro: 0,
-    totalUSD: 0,
+    algo: 12.5432,
+    zyro: 1247.89,
+    totalUSD: 3456.78,
   });
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState([
+    {
+      id: '1',
+      type: 'reward',
+      amount: 25.50,
+      currency: 'ZYR',
+      description: 'Payment reward',
+      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      zyro_earned: 25.50,
+    },
+    {
+      id: '2',
+      type: 'payment',
+      amount: -100.00,
+      currency: 'USD',
+      description: 'Coffee payment',
+      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      zyro_earned: 10.00,
+    },
+  ]);
 
   const authState = authService.getAuthState();
 
-  useEffect(() => {
-    loadBalances();
-    loadTransactions();
-  }, []);
-
-  const loadBalances = async () => {
-    try {
-      if (!authState.algorandAccount) return;
-
-      const [algoBalance, zyroBalance, algoPrice] = await Promise.all([
-        algorandService.getAccountBalance(authState.algorandAccount.address),
-        algorandService.getZyroBalance(authState.algorandAccount.address),
-        algorandService.getAlgoUSDPrice(),
-      ]);
-
-      const totalUSD = (algoBalance * algoPrice) + (zyroBalance * 2); // Assuming 1 ZYR = $2
-
-      setBalances({
-        algo: algoBalance,
-        zyro: zyroBalance,
-        totalUSD,
-      });
-    } catch (error) {
-      console.error('Error loading balances:', error);
-    }
-  };
-
-  const loadTransactions = async () => {
-    try {
-      if (!authState.user) return;
-
-      const transactions = await PaymentProcessor.getTransactionHistory(authState.user.id);
-      setRecentTransactions(transactions.slice(0, 5));
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-    }
-  };
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadBalances(), loadTransactions()]);
-    setRefreshing(false);
+    // Simulate loading
+    setTimeout(() => setRefreshing(false), 1000);
   };
 
   const toggleVoiceAssistant = () => {
     setIsListening(!isListening);
-    // Voice assistant logic would go here
     if (!isListening) {
       Alert.alert('Voice Assistant', 'Voice assistant activated. Say "help" to see available commands.');
     }
   };
 
   const quickActions = [
-    { id: '1', title: 'Scan QR', icon: '📱', color: '#8B5CF6', route: '/scan' },
-    { id: '2', title: 'Send Money', icon: '💸', color: '#EC4899', route: '/wallet' },
-    { id: '3', title: 'Buy Crypto', icon: '₿', color: '#F59E0B', route: '/wallet' },
-    { id: '4', title: 'NFT Gallery', icon: '🎨', color: '#10B981', route: '/rewards' },
+    { id: '1', title: 'Scan QR', icon: '📱', color: '#8B5CF6' },
+    { id: '2', title: 'Send Money', icon: '💸', color: '#EC4899' },
+    { id: '3', title: 'Buy Crypto', icon: '₿', color: '#F59E0B' },
+    { id: '4', title: 'NFT Gallery', icon: '🎨', color: '#10B981' },
   ];
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {
@@ -241,7 +219,7 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.transactionDetails}>
                     <Text style={styles.transactionDescription}>
-                      {transaction.type === 'payment' ? 'Payment' : 'Reward'} - {transaction.payment_method || 'Algorand'}
+                      {transaction.description}
                     </Text>
                     <Text style={styles.transactionTime}>
                       {new Date(transaction.created_at).toLocaleDateString()}
