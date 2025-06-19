@@ -30,12 +30,24 @@ class AuthService {
   private async initialize() {
     try {
       if (!supabase) {
-        console.warn('Supabase client not initialized. Authentication will not work.');
+        console.warn('Supabase client not initialized. Running in demo mode.');
+        // Set demo user for testing without Supabase
         this.updateState({
-          user: null,
-          algorandAccount: null,
+          user: {
+            id: 'demo-user',
+            email: 'demo@zyra.app',
+            full_name: 'Demo User',
+            kyc_verified: true,
+            subscription_tier: 'pro',
+            anonymous_mode: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          algorandAccount: {
+            address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+          },
           isLoading: false,
-          isAuthenticated: false,
+          isAuthenticated: true,
         });
         return;
       }
@@ -135,7 +147,28 @@ class AuthService {
   async signIn(email: string, password: string): Promise<AuthResult> {
     try {
       if (!supabase) {
-        return { success: false, error: 'Authentication service not available' };
+        // Demo mode - simulate successful login
+        const demoUser: User = {
+          id: 'demo-user',
+          email,
+          full_name: 'Demo User',
+          kyc_verified: true,
+          subscription_tier: 'pro',
+          anonymous_mode: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        this.updateState({
+          user: demoUser,
+          algorandAccount: {
+            address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+          },
+          isLoading: false,
+          isAuthenticated: true,
+        });
+        
+        return { success: true, user: demoUser };
       }
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -156,7 +189,28 @@ class AuthService {
   async signUp(email: string, password: string, fullName: string): Promise<AuthResult> {
     try {
       if (!supabase) {
-        return { success: false, error: 'Authentication service not available' };
+        // Demo mode - simulate successful signup
+        const demoUser: User = {
+          id: 'demo-user',
+          email,
+          full_name: fullName,
+          kyc_verified: false,
+          subscription_tier: 'free',
+          anonymous_mode: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        this.updateState({
+          user: demoUser,
+          algorandAccount: {
+            address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+          },
+          isLoading: false,
+          isAuthenticated: true,
+        });
+        
+        return { success: true, user: demoUser };
       }
 
       const { data, error } = await supabase.auth.signUp({
@@ -182,7 +236,14 @@ class AuthService {
   async signOut(): Promise<AuthResult> {
     try {
       if (!supabase) {
-        return { success: false, error: 'Authentication service not available' };
+        // Demo mode - simulate signout
+        this.updateState({
+          user: null,
+          algorandAccount: null,
+          isLoading: false,
+          isAuthenticated: false,
+        });
+        return { success: true };
       }
 
       const { error } = await supabase.auth.signOut();
@@ -200,7 +261,7 @@ class AuthService {
   async resetPassword(email: string): Promise<AuthResult> {
     try {
       if (!supabase) {
-        return { success: false, error: 'Authentication service not available' };
+        return { success: true }; // Demo mode
       }
 
       const { error } = await supabase.auth.resetPasswordForEmail(email);
