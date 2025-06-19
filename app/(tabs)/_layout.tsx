@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Scan, Wallet, User, Zap } from 'lucide-react-native';
+import { Chrome as Home, Scan, Wallet, User, Zap } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -15,7 +15,7 @@ export default function TabLayout() {
         tabBarLabelStyle: styles.tabBarLabel,
       }}>
       <Tabs.Screen
-        name="home"
+        name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ size, color }) => (
