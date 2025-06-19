@@ -23,35 +23,43 @@ class AuthService {
     isLoading: true,
     isAuthenticated: false,
   };
+  private initialized = false;
 
   constructor() {
     this.initialize();
   }
 
   private async initialize() {
+    if (this.initialized) return;
+    this.initialized = true;
+
     try {
+      console.log('Initializing auth service...');
+      
       if (!supabase) {
-        console.warn('Supabase client not initialized. Running in demo mode.');
+        console.log('Supabase not configured, running in demo mode');
         // Set demo user for testing without Supabase
         setTimeout(() => {
+          const demoUser: User = {
+            id: 'demo-user',
+            email: 'demo@zyra.app',
+            full_name: 'Alex Chen',
+            kyc_verified: true,
+            subscription_tier: 'pro',
+            anonymous_mode: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
           this.updateState({
-            user: {
-              id: 'demo-user',
-              email: 'demo@zyra.app',
-              full_name: 'Alex Chen',
-              kyc_verified: true,
-              subscription_tier: 'pro',
-              anonymous_mode: false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
+            user: demoUser,
             algorandAccount: {
               address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
             },
             isLoading: false,
             isAuthenticated: true,
           });
-        }, Platform.OS === 'android' ? 1000 : 500); // Longer delay for Android
+        }, Platform.OS === 'android' ? 1500 : 800);
         return;
       }
 
@@ -77,6 +85,7 @@ class AuthService {
 
       // Listen for auth changes
       supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event);
         if (session?.user) {
           const userData = await this.fetchUserData(session.user.id);
           this.updateState({
@@ -97,17 +106,19 @@ class AuthService {
     } catch (error) {
       console.error('Auth initialization error:', error);
       // Fallback to demo mode on error
+      const demoUser: User = {
+        id: 'demo-user',
+        email: 'demo@zyra.app',
+        full_name: 'Alex Chen',
+        kyc_verified: true,
+        subscription_tier: 'pro',
+        anonymous_mode: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
       this.updateState({
-        user: {
-          id: 'demo-user',
-          email: 'demo@zyra.app',
-          full_name: 'Alex Chen',
-          kyc_verified: true,
-          subscription_tier: 'pro',
-          anonymous_mode: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
+        user: demoUser,
         algorandAccount: {
           address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
         },
@@ -141,6 +152,8 @@ class AuthService {
 
   private updateState(newState: Partial<AuthState>) {
     this.currentState = { ...this.currentState, ...newState };
+    console.log('Auth state updated:', this.currentState);
+    
     this.listeners.forEach(listener => {
       try {
         listener(this.currentState);
@@ -152,6 +165,9 @@ class AuthService {
 
   subscribe(listener: (state: AuthState) => void): () => void {
     this.listeners.push(listener);
+    // Immediately call with current state
+    listener(this.currentState);
+    
     // Return unsubscribe function
     return () => {
       const index = this.listeners.indexOf(listener);

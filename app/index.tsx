@@ -6,28 +6,51 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Index() {
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     // Subscribe to auth state changes
     const unsubscribe = authService.subscribe((authState) => {
       if (!authState.isLoading) {
+        // Clear any existing timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        // Add a small delay to ensure smooth transition
+        timeoutId = setTimeout(() => {
+          if (authState.isAuthenticated) {
+            router.replace('/(tabs)');
+          } else {
+            router.replace('/(auth)/sign-in');
+          }
+        }, 100);
+      }
+    });
+
+    // Initial check with fallback timeout
+    const authState = authService.getAuthState();
+    if (!authState.isLoading) {
+      timeoutId = setTimeout(() => {
         if (authState.isAuthenticated) {
           router.replace('/(tabs)');
         } else {
           router.replace('/(auth)/sign-in');
         }
-      }
-    });
-
-    // Initial check
-    const authState = authService.getAuthState();
-    if (!authState.isLoading) {
-      if (authState.isAuthenticated) {
+      }, 100);
+    } else {
+      // Fallback timeout in case auth never loads
+      timeoutId = setTimeout(() => {
+        console.log('Auth timeout, redirecting to tabs...');
         router.replace('/(tabs)');
-      } else {
-        router.replace('/(auth)/sign-in');
-      }
+      }, 3000);
     }
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   // Show a loading screen while redirecting
