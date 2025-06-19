@@ -1,23 +1,33 @@
 import { useEffect } from 'react';
 import { router } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { authService } from '@/lib/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Index() {
   useEffect(() => {
+    // Subscribe to auth state changes
+    const unsubscribe = authService.subscribe((authState) => {
+      if (!authState.isLoading) {
+        if (authState.isAuthenticated) {
+          router.replace('/(tabs)');
+        } else {
+          router.replace('/(auth)/sign-in');
+        }
+      }
+    });
+
+    // Initial check
     const authState = authService.getAuthState();
-    
-    // Small delay to ensure proper initialization
-    const timer = setTimeout(() => {
+    if (!authState.isLoading) {
       if (authState.isAuthenticated) {
         router.replace('/(tabs)');
       } else {
         router.replace('/(auth)/sign-in');
       }
-    }, 100);
+    }
 
-    return () => clearTimeout(timer);
+    return unsubscribe;
   }, []);
 
   // Show a loading screen while redirecting
@@ -59,18 +69,30 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: 'white',
-    fontFamily: 'SpaceGrotesk-Bold',
+    fontFamily: Platform.select({
+      ios: 'SpaceGrotesk-Bold',
+      android: 'SpaceGrotesk-Bold',
+      default: 'sans-serif',
+    }),
   },
   appName: {
     fontSize: 28,
     fontWeight: '700',
     color: 'white',
-    fontFamily: 'SpaceGrotesk-Bold',
+    fontFamily: Platform.select({
+      ios: 'SpaceGrotesk-Bold',
+      android: 'SpaceGrotesk-Bold',
+      default: 'sans-serif',
+    }),
     marginBottom: 8,
   },
   tagline: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.select({
+      ios: 'Inter-Regular',
+      android: 'Inter-Regular',
+      default: 'sans-serif',
+    }),
   },
 });
