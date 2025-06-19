@@ -61,8 +61,8 @@ export default function RootLayout() {
     hideSplashScreen();
   }, [fontsLoaded, fontError, authState.isLoading]);
 
-  // Don't render anything until fonts are loaded and auth is ready
-  if ((!fontsLoaded && !fontError) || authState.isLoading) {
+  // Don't render anything until fonts are loaded
+  if (!fontsLoaded && !fontError) {
     return null;
   }
 

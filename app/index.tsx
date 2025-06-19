@@ -7,10 +7,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function Index() {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    let redirected = false;
 
     // Subscribe to auth state changes
     const unsubscribe = authService.subscribe((authState) => {
-      if (!authState.isLoading) {
+      console.log('Auth state in index:', authState);
+      
+      if (!authState.isLoading && !redirected) {
+        redirected = true;
+        
         // Clear any existing timeout
         if (timeoutId) {
           clearTimeout(timeoutId);
@@ -18,38 +23,38 @@ export default function Index() {
 
         // Add a small delay to ensure smooth transition
         timeoutId = setTimeout(() => {
-          if (authState.isAuthenticated) {
+          try {
+            if (authState.isAuthenticated) {
+              console.log('Redirecting to tabs...');
+              router.replace('/(tabs)');
+            } else {
+              console.log('Redirecting to auth...');
+              router.replace('/(auth)/sign-in');
+            }
+          } catch (error) {
+            console.error('Navigation error:', error);
+            // Fallback to tabs
             router.replace('/(tabs)');
-          } else {
-            router.replace('/(auth)/sign-in');
           }
-        }, 100);
+        }, Platform.OS === 'android' ? 500 : 200);
       }
     });
 
-    // Initial check with fallback timeout
-    const authState = authService.getAuthState();
-    if (!authState.isLoading) {
-      timeoutId = setTimeout(() => {
-        if (authState.isAuthenticated) {
-          router.replace('/(tabs)');
-        } else {
-          router.replace('/(auth)/sign-in');
-        }
-      }, 100);
-    } else {
-      // Fallback timeout in case auth never loads
-      timeoutId = setTimeout(() => {
-        console.log('Auth timeout, redirecting to tabs...');
+    // Fallback timeout in case auth never loads properly
+    const fallbackTimeout = setTimeout(() => {
+      if (!redirected) {
+        console.log('Fallback timeout, redirecting to tabs...');
+        redirected = true;
         router.replace('/(tabs)');
-      }, 3000);
-    }
+      }
+    }, 5000);
 
     return () => {
       unsubscribe();
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+      clearTimeout(fallbackTimeout);
     };
   }, []);
 

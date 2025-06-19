@@ -26,6 +26,7 @@ class AuthService {
   private initialized = false;
 
   constructor() {
+    // Start initialization immediately
     this.initialize();
   }
 
@@ -33,33 +34,12 @@ class AuthService {
     if (this.initialized) return;
     this.initialized = true;
 
+    console.log('Initializing auth service...');
+    
     try {
-      console.log('Initializing auth service...');
-      
       if (!supabase) {
         console.log('Supabase not configured, running in demo mode');
-        // Set demo user for testing without Supabase
-        setTimeout(() => {
-          const demoUser: User = {
-            id: 'demo-user',
-            email: 'demo@zyra.app',
-            full_name: 'Alex Chen',
-            kyc_verified: true,
-            subscription_tier: 'pro',
-            anonymous_mode: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-
-          this.updateState({
-            user: demoUser,
-            algorandAccount: {
-              address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-            },
-            isLoading: false,
-            isAuthenticated: true,
-          });
-        }, Platform.OS === 'android' ? 1500 : 800);
+        this.setDemoMode();
         return;
       }
 
@@ -70,7 +50,9 @@ class AuthService {
         const userData = await this.fetchUserData(session.user.id);
         this.updateState({
           user: userData,
-          algorandAccount: null, // Will be set when needed
+          algorandAccount: {
+            address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+          },
           isLoading: false,
           isAuthenticated: true,
         });
@@ -90,7 +72,9 @@ class AuthService {
           const userData = await this.fetchUserData(session.user.id);
           this.updateState({
             user: userData,
-            algorandAccount: null,
+            algorandAccount: {
+              address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            },
             isLoading: false,
             isAuthenticated: true,
           });
@@ -105,7 +89,14 @@ class AuthService {
       });
     } catch (error) {
       console.error('Auth initialization error:', error);
-      // Fallback to demo mode on error
+      this.setDemoMode();
+    }
+  }
+
+  private setDemoMode() {
+    const delay = Platform.OS === 'android' ? 1000 : 500;
+    
+    setTimeout(() => {
       const demoUser: User = {
         id: 'demo-user',
         email: 'demo@zyra.app',
@@ -125,7 +116,7 @@ class AuthService {
         isLoading: false,
         isAuthenticated: true,
       });
-    }
+    }, delay);
   }
 
   private async fetchUserData(userId: string): Promise<User | null> {
