@@ -17,6 +17,7 @@ import {
 } from '@expo-google-fonts/space-grotesk';
 import * as SplashScreen from 'expo-splash-screen';
 import { authService, AuthState } from '@/lib/auth';
+import { Platform } from 'react-native';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,17 +61,15 @@ export default function RootLayout() {
     hideSplashScreen();
   }, [fontsLoaded, fontError, authState.isLoading]);
 
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
-
-  if (authState.isLoading) {
+  // Don't render anything until fonts are loaded and auth is initialized
+  if ((!fontsLoaded && !fontError) || authState.isLoading) {
     return null;
   }
 
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
