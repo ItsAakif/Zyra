@@ -433,7 +433,7 @@ export class AdvancedAIIntegration {
   private async generateMultiModalResponse(context: any, userId: string): Promise<AIResponse> {
     // Generate response for multimodal input
     return {
-      content: 'I've processed your multimodal input and can provide the following insights...',
+      content: 'I\'ve processed your multimodal input and can provide the following insights...',
       confidence: 0.85,
       reasoning: ['Analyzed image content', 'Processed text query', 'Combined context from both modalities'],
       actions: [],
