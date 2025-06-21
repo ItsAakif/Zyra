@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Shield, AlertTriangle, CheckCircle, TrendingUp, Activity } from 'lucide-react-native';
+import { Shield, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, TrendingUp, Activity } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface FraudAlert {
