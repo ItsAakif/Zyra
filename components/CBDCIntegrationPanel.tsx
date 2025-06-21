@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Coins, Globe, CheckCircle, AlertTriangle, Calendar, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Coins, Globe, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Calendar, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { emergingTechnologyService } from '@/lib/emerging-tech';
 
