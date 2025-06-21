@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Camera, Upload, CheckCircle, AlertCircle, User, FileText } from 'lucide-react-native';
+import { Camera, Upload, CircleCheck as CheckCircle, CircleAlert as AlertCircle, User, FileText } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { productionKYCService } from '@/lib/kyc-production';
 
