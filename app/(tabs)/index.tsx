@@ -17,43 +17,132 @@ import {
   ArrowUpRight, 
   ArrowDownLeft,
   Gift,
-  Mic,
-  MicOff,
   Wallet,
-  Zap
+  Zap,
+  QrCode,
+  Send,
+  Bitcoin,
+  Image as ImageIcon
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import SubscriptionBenefits from '@/components/SubscriptionBenefits';
+import PlatformBadges from '@/components/PlatformBadges';
 import { authService } from '@/lib/auth';
+import { realWalletService } from '@/lib/real-wallet';
+import { settingsService } from '@/lib/settings';
+import { useTheme } from '@/lib/theme';
+
+interface RecentTransaction {
+  id: string;
+  type: 'reward' | 'payment' | 'receive' | 'send';
+  amount: number;
+  currency: string;
+  description: string;
+  created_at: string;
+  zyro_earned?: number;
+}
 
 export default function HomeScreen() {
+  const { theme } = useTheme();
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [isListening, setIsListening] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [walletState, setWalletState] = useState(realWalletService.getState());
+  const [demoMode, setDemoMode] = useState(settingsService.isDemoMode());
+
+  useEffect(() => {
+    const unsubscribeWallet = realWalletService.subscribe(setWalletState);
+    const unsubscribeSettings = settingsService.subscribe((settings) => {
+      setDemoMode(settings.demoMode);
+    });
+
+    return () => {
+      unsubscribeWallet();
+      unsubscribeSettings();
+    };
+  }, []);
   const [balances, setBalances] = useState({
-    algo: 12.5432,
-    zyro: 1247.89,
-    totalUSD: 3456.78,
+    algo: demoMode ? 12.5432 : (walletState.algoBalance || 0),
+    zyro: demoMode ? 1247.89 : (walletState.zyroBalance || 0),
+    totalUSD: demoMode ? 3456.78 : ((walletState.algoBalance || 0) * 0.32 + (walletState.zyroBalance || 0) * 2.0),
   });
-  const [recentTransactions, setRecentTransactions] = useState([
-    {
-      id: '1',
-      type: 'reward',
-      amount: 25.50,
-      currency: 'ZYR',
-      description: 'Payment reward',
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      zyro_earned: 25.50,
-    },
-    {
-      id: '2',
-      type: 'payment',
-      amount: -100.00,
-      currency: 'USD',
-      description: 'Coffee payment',
-      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      zyro_earned: 10.00,
-    },
-  ]);
+
+  // Update balances when wallet state or demo mode changes
+  useEffect(() => {
+    setBalances({
+      algo: demoMode ? 12.5432 : (walletState.algoBalance || 0),
+      zyro: demoMode ? 1247.89 : (walletState.zyroBalance || 0),
+      totalUSD: demoMode ? 3456.78 : ((walletState.algoBalance || 0) * 0.32 + (walletState.zyroBalance || 0) * 2.0),
+    });
+  }, [walletState, demoMode]);
+
+  // Load recent transactions
+  useEffect(() => {
+    const loadRecentTransactions = async () => {
+      if (demoMode) {
+        // Demo mode - show sample transactions
+        setRecentTransactions([
+          {
+            id: '1',
+            type: 'reward',
+            amount: 25.50,
+            currency: 'ZYR',
+            description: 'Payment reward',
+            created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+            zyro_earned: 25.50,
+          },
+          {
+            id: '2',
+            type: 'payment',
+            amount: -100.00,
+            currency: 'USD',
+            description: 'Coffee payment',
+            created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+            zyro_earned: 10.00,
+          },
+        ]);
+      } else if (walletState.isConnected) {
+        // Real mode - load actual transactions
+        try {
+          const realTransactions = await realWalletService.getTransactionHistory();
+          const formattedTransactions: RecentTransaction[] = realTransactions.slice(0, 3).map(tx => ({
+            id: tx.id,
+            type: tx.type === 'sent' ? 'send' : 'receive',
+            amount: tx.type === 'sent' ? -tx.amount : tx.amount,
+            currency: tx.currency,
+            description: tx.type === 'sent' ? 'Sent crypto' : 'Received crypto',
+            created_at: new Date(tx.timestamp).toISOString(),
+            zyro_earned: tx.type === 'received' ? tx.amount * 0.1 : undefined, // 10% reward
+          }));
+          
+          // If no real transactions, show demo data for presentation
+          if (formattedTransactions.length === 0) {
+            setRecentTransactions([
+              {
+                id: 'demo-1',
+                type: 'receive',
+                amount: 10.0,
+                currency: 'ALGO',
+                description: 'Received ALGO',
+                created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+                zyro_earned: 1.0,
+              },
+            ]);
+          } else {
+            setRecentTransactions(formattedTransactions);
+          }
+        } catch (error) {
+          console.error('Error loading recent transactions:', error);
+          setRecentTransactions([]);
+        }
+      } else {
+        setRecentTransactions([]);
+      }
+    };
+
+    loadRecentTransactions();
+  }, [walletState, demoMode]);
+  const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([]);
 
   const authState = authService.getAuthState();
 
@@ -63,18 +152,41 @@ export default function HomeScreen() {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
-  const toggleVoiceAssistant = () => {
-    setIsListening(!isListening);
-    if (!isListening) {
-      Alert.alert('Voice Assistant', 'Voice assistant activated. Say "help" to see available commands.');
-    }
+
+
+  const handleNotificationPress = () => {
+    router.push('/notifications' as any);
   };
 
   const quickActions = [
-    { id: '1', title: 'Scan QR', icon: '📱', color: '#8B5CF6' },
-    { id: '2', title: 'Send Money', icon: '💸', color: '#EC4899' },
-    { id: '3', title: 'Buy Crypto', icon: '₿', color: '#F59E0B' },
-    { id: '4', title: 'NFT Gallery', icon: '🎨', color: '#10B981' },
+    { 
+      id: '1', 
+      title: 'Scan QR', 
+      icon: QrCode, 
+      color: '#8B5CF6',
+      onPress: () => router.push('/scan')
+    },
+    { 
+      id: '2', 
+      title: 'Send Money', 
+      icon: Send, 
+      color: '#EC4899',
+      onPress: () => router.push('/wallet')
+    },
+    { 
+      id: '3', 
+      title: 'Buy Crypto', 
+      icon: Bitcoin, 
+      color: '#F59E0B',
+      onPress: () => router.push('/buy-crypto')
+    },
+    { 
+      id: '4', 
+      title: 'NFT Gallery', 
+      icon: ImageIcon, 
+      color: '#10B981',
+      onPress: () => router.push('/rewards')
+    },
   ];
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {
@@ -96,7 +208,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView 
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -106,21 +218,11 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Good morning</Text>
-            <Text style={styles.userName}>{authState.user?.full_name || 'User'}</Text>
+            <Text style={[styles.greeting, { color: theme.colors.textSecondary }]}>Good morning</Text>
+            <Text style={[styles.userName, { color: theme.colors.text }]}>{authState.user?.full_name || 'User'}</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity 
-              style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
-              onPress={toggleVoiceAssistant}
-            >
-              {isListening ? (
-                <MicOff size={20} color={isListening ? 'white' : '#6B7280'} />
-              ) : (
-                <Mic size={20} color="#6B7280" />
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.notificationButton}>
+            <TouchableOpacity style={styles.notificationButton} onPress={handleNotificationPress}>
               <Bell size={24} color="#6B7280" />
               <View style={styles.notificationDot} />
             </TouchableOpacity>
@@ -165,42 +267,49 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            {quickActions.map((action) => (
-              <TouchableOpacity key={action.id} style={styles.actionButton}>
-                <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
-                  <Text style={styles.actionEmoji}>{action.icon}</Text>
-                </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-              </TouchableOpacity>
-            ))}
+            {quickActions.map((action) => {
+              const IconComponent = action.icon;
+              return (
+                <TouchableOpacity 
+                  key={action.id} 
+                  style={styles.actionButton}
+                  onPress={action.onPress}
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
+                    <IconComponent size={24} color={action.color} strokeWidth={2} />
+                  </View>
+                  <Text style={styles.actionTitle}>{action.title}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
             <View style={styles.statHeader}>
               <TrendingUp size={20} color="#10B981" />
-              <Text style={styles.statValue}>+24.5%</Text>
+              <Text style={[styles.statValue, { color: theme.colors.text }]}>+24.5%</Text>
             </View>
-            <Text style={styles.statLabel}>This Month</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>This Month</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
             <View style={styles.statHeader}>
               <Gift size={20} color="#F59E0B" />
-              <Text style={styles.statValue}>{recentTransactions.length}</Text>
+              <Text style={[styles.statValue, { color: theme.colors.text }]}>{recentTransactions.length}</Text>
             </View>
-            <Text style={styles.statLabel}>Transactions</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Transactions</Text>
           </View>
         </View>
 
         {/* Recent Transactions */}
         <View style={styles.transactionsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Recent Activity</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -209,7 +318,7 @@ export default function HomeScreen() {
             recentTransactions.map((transaction) => {
               const amountInfo = formatTransactionAmount(transaction);
               return (
-                <View key={transaction.id} style={styles.transactionItem}>
+                <View key={transaction.id} style={[styles.transactionItem, { backgroundColor: theme.colors.card }]}>
                   <View style={styles.transactionIcon}>
                     {transaction.type === 'payment' ? (
                       <ArrowUpRight size={16} color="#EF4444" />
@@ -218,10 +327,10 @@ export default function HomeScreen() {
                     )}
                   </View>
                   <View style={styles.transactionDetails}>
-                    <Text style={styles.transactionDescription}>
+                    <Text style={[styles.transactionDescription, { color: theme.colors.text }]}>
                       {transaction.description}
                     </Text>
-                    <Text style={styles.transactionTime}>
+                    <Text style={[styles.transactionTime, { color: theme.colors.textSecondary }]}>
                       {new Date(transaction.created_at).toLocaleDateString()}
                     </Text>
                   </View>
@@ -229,7 +338,7 @@ export default function HomeScreen() {
                     <Text style={[styles.transactionAmount, { color: amountInfo.color }]}>
                       {amountInfo.text}
                     </Text>
-                    {transaction.zyro_earned > 0 && (
+                    {transaction.zyro_earned && transaction.zyro_earned > 0 && (
                       <Text style={styles.zyroEarned}>+{transaction.zyro_earned} ZYR</Text>
                     )}
                   </View>
@@ -239,28 +348,22 @@ export default function HomeScreen() {
           ) : (
             <View style={styles.emptyTransactions}>
               <Wallet size={48} color="#D1D5DB" />
-              <Text style={styles.emptyTransactionsText}>No transactions yet</Text>
-              <Text style={styles.emptyTransactionsSubtext}>
+              <Text style={[styles.emptyTransactionsText, { color: theme.colors.textSecondary }]}>No transactions yet</Text>
+              <Text style={[styles.emptyTransactionsSubtext, { color: theme.colors.textTertiary }]}>
                 Start making payments to see your activity here
               </Text>
             </View>
           )}
         </View>
 
-        {/* Promotional Banner */}
-        <LinearGradient
-          colors={['#F59E0B', '#F97316']}
-          style={styles.promoBanner}
-        >
-          <View style={styles.promoContent}>
-            <Text style={styles.promoTitle}>Upgrade to Zyra Pro</Text>
-            <Text style={styles.promoSubtitle}>Get 2x Zyro rewards & gasless transactions</Text>
-          </View>
-          <TouchableOpacity style={styles.promoButton}>
-            <Text style={styles.promoButtonText}>Upgrade</Text>
-          </TouchableOpacity>
-        </LinearGradient>
+        {/* Subscription Benefits */}
+        <SubscriptionBenefits 
+          onUpgrade={() => router.push('/(tabs)/profile')}
+        />
       </ScrollView>
+      
+      {/* Platform Badges */}
+      <PlatformBadges style={styles.badgeContainer} />
     </SafeAreaView>
   );
 }
@@ -268,7 +371,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -293,17 +395,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  voiceButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  voiceButtonActive: {
-    backgroundColor: '#EF4444',
-  },
+
   notificationButton: {
     position: 'relative',
   },
@@ -547,5 +639,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     fontFamily: 'Inter-SemiBold',
+  },
+  
+  // Badge Container Position
+  badgeContainer: {
+    position: 'absolute',
+    bottom: 100, // Above tab bar
+    right: 20,
   },
 });

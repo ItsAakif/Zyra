@@ -9,14 +9,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react-native';
 import { authService } from '@/lib/auth';
+import { useTheme } from '@/lib/theme';
 
 export default function SignUpScreen() {
+  const { theme } = useTheme();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -67,7 +70,7 @@ export default function SignUpScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -75,36 +78,37 @@ export default function SignUpScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Header */}
           <View style={styles.header}>
-            <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
-              style={styles.logoContainer}
-            >
-              <Text style={styles.logoText}>Z</Text>
-            </LinearGradient>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>
+            <Image 
+              source={require('@/assets/images/logo_gradient.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={[styles.title, { color: theme.colors.text }]}>Create Account</Text>
+            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
               Join Zyra to start making global payments and earning rewards
             </Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <User size={20} color="#6B7280" style={styles.inputIcon} />
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
+              <User size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Full name"
+                placeholderTextColor={theme.colors.textSecondary}
                 value={fullName}
                 onChangeText={setFullName}
                 autoCapitalize="words"
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Mail size={20} color="#6B7280" style={styles.inputIcon} />
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
+              <Mail size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Email address"
+                placeholderTextColor={theme.colors.textSecondary}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -113,11 +117,12 @@ export default function SignUpScreen() {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Lock size={20} color="#6B7280" style={styles.inputIcon} />
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
+              <Lock size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Password"
+                placeholderTextColor={theme.colors.textSecondary}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -128,18 +133,19 @@ export default function SignUpScreen() {
                 onPress={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
-                  <EyeOff size={20} color="#6B7280" />
+                  <EyeOff size={20} color={theme.colors.textSecondary} />
                 ) : (
-                  <Eye size={20} color="#6B7280" />
+                  <Eye size={20} color={theme.colors.textSecondary} />
                 )}
               </TouchableOpacity>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Lock size={20} color="#6B7280" style={styles.inputIcon} />
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
+              <Lock size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Confirm password"
+                placeholderTextColor={theme.colors.textSecondary}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
@@ -150,9 +156,9 @@ export default function SignUpScreen() {
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               >
                 {showConfirmPassword ? (
-                  <EyeOff size={20} color="#6B7280" />
+                  <EyeOff size={20} color={theme.colors.textSecondary} />
                 ) : (
-                  <Eye size={20} color="#6B7280" />
+                  <Eye size={20} color={theme.colors.textSecondary} />
                 )}
               </TouchableOpacity>
             </View>
@@ -172,7 +178,7 @@ export default function SignUpScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            <Text style={styles.termsText}>
+            <Text style={[styles.termsText, { color: theme.colors.textSecondary }]}>
               By creating an account, you agree to our{' '}
               <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
               <Text style={styles.termsLink}>Privacy Policy</Text>
@@ -181,7 +187,7 @@ export default function SignUpScreen() {
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
+            <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>Already have an account? </Text>
             <Link href="/(auth)/sign-in" asChild>
               <TouchableOpacity>
                 <Text style={styles.signInLink}>Sign In</Text>
@@ -211,19 +217,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  logoContainer: {
-    width: 80,
+  logoImage: {
+    width: 120,
     height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 24,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: 'white',
-    fontFamily: 'SpaceGrotesk-Bold',
   },
   title: {
     fontSize: 28,

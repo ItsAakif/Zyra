@@ -1,5 +1,8 @@
+// Ensure crypto polyfills are loaded
+import 'react-native-get-random-values';
+
 import algosdk from 'algosdk';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 
 export interface AlgorandAccount {
@@ -33,20 +36,27 @@ export class AlgorandService {
   private zyroAssetId: number;
 
   constructor() {
-    // MainNet configuration
-    const algodToken = process.env.EXPO_PUBLIC_ALGOD_TOKEN || '';
-    const algodServer = process.env.EXPO_PUBLIC_ALGOD_SERVER || 'https://mainnet-api.algonode.cloud';
-    const algodPort = process.env.EXPO_PUBLIC_ALGOD_PORT || '';
+    try {
+      // For testnet, we don't need API keys for basic operations
+      const algodToken = process.env.EXPO_PUBLIC_ALGORAND_API_KEY || '';
+      const algodServer = process.env.EXPO_PUBLIC_ALGORAND_NODE_URL || 'https://testnet-api.algonode.cloud';
+      const algodPort = '';
 
-    const indexerToken = process.env.EXPO_PUBLIC_INDEXER_TOKEN || '';
-    const indexerServer = process.env.EXPO_PUBLIC_INDEXER_SERVER || 'https://mainnet-idx.algonode.cloud';
-    const indexerPort = process.env.EXPO_PUBLIC_INDEXER_PORT || '';
+      const indexerToken = process.env.EXPO_PUBLIC_ALGORAND_API_KEY || '';
+      const indexerServer = process.env.EXPO_PUBLIC_ALGORAND_INDEXER_URL || 'https://testnet-idx.algonode.cloud';
+      const indexerPort = '';
 
-    this.algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
-    this.indexerClient = new algosdk.Indexer(indexerToken, indexerServer, indexerPort);
-    
-    // Zyro token asset ID (will be created during deployment)
-    this.zyroAssetId = parseInt(process.env.EXPO_PUBLIC_ZYRO_ASSET_ID || '0');
+      this.algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
+      this.indexerClient = new algosdk.Indexer(indexerToken, indexerServer, indexerPort);
+      
+      // Zyro token asset ID (will be created during deployment)
+      this.zyroAssetId = parseInt(process.env.EXPO_PUBLIC_ZYRO_ASSET_ID || '0');
+      
+      console.log('✅ Algorand service initialized');
+      console.log(`📡 Connected to: ${algodServer}`);
+    } catch (error) {
+      console.error('❌ Error initializing Algorand service:', error);
+    }
   }
 
   // Account Management
@@ -92,14 +102,14 @@ export class AlgorandService {
 
   async getStoredAccount(): Promise<AlgorandAccount | null> {
     try {
-      const encryptedData = await SecureStore.getItemAsync('algorand_account');
-      if (!encryptedData) return null;
+      const accountData = await AsyncStorage.getItem('algorand_account');
+      if (!accountData) return null;
 
-      const accountData = JSON.parse(encryptedData);
+      const parsed = JSON.parse(accountData);
       return {
-        address: accountData.address,
-        mnemonic: accountData.mnemonic,
-        privateKey: new Uint8Array(accountData.privateKey),
+        address: parsed.address,
+        mnemonic: parsed.mnemonic,
+        privateKey: new Uint8Array(parsed.privateKey),
       };
     } catch (error) {
       console.error('Error retrieving account:', error);
@@ -115,7 +125,8 @@ export class AlgorandService {
         privateKey: Array.from(account.privateKey),
       };
 
-      await SecureStore.setItemAsync('algorand_account', JSON.stringify(accountData));
+      await AsyncStorage.setItem('algorand_account', JSON.stringify(accountData));
+      console.log('✅ Account stored successfully');
     } catch (error) {
       console.error('Error storing account:', error);
       throw new Error('Failed to store account securely');
@@ -317,7 +328,7 @@ export class AlgorandService {
         to: txn['payment-transaction']?.receiver || txn['asset-transfer-transaction']?.receiver,
         amount: txn['payment-transaction']?.amount || txn['asset-transfer-transaction']?.amount || 0,
         fee: txn.fee,
-        note: txn.note ? new TextDecoder().decode(Buffer.from(txn.note, 'base64')) : undefined,
+        note: txn.note ? this.decodeBase64Note(txn.note) : undefined,
         confirmedRound: txn['confirmed-round'],
       }));
     } catch (error) {
@@ -348,6 +359,21 @@ export class AlgorandService {
       return algosdk.isValidAddress(address);
     } catch {
       return false;
+    }
+  }
+
+  private decodeBase64Note(base64Note: string): string {
+    try {
+      // React Native compatible base64 decode
+      const binaryString = atob(base64Note);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return new TextDecoder().decode(bytes);
+    } catch (error) {
+      console.error('Error decoding note:', error);
+      return '';
     }
   }
 

@@ -1,11 +1,15 @@
 import { useEffect } from 'react';
 import { router } from 'expo-router';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, Image } from 'react-native';
 import { authService } from '@/lib/auth';
 import { LinearGradient } from 'expo-linear-gradient';
+import { EnvironmentService } from '@/lib/environment';
 
 export default function Index() {
   useEffect(() => {
+    // Log environment status on app start
+    EnvironmentService.logEnvironmentStatus();
+    
     let timeoutId: NodeJS.Timeout;
     let redirected = false;
 
@@ -65,9 +69,11 @@ export default function Index() {
         colors={['#8B5CF6', '#EC4899']}
         style={styles.gradient}
       >
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>Z</Text>
-        </View>
+        <Image 
+          source={require('@/assets/images/logo_white.png.png')} 
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
         <Text style={styles.appName}>Zyra</Text>
         <Text style={styles.tagline}>Global Payments Made Simple</Text>
       </LinearGradient>
@@ -84,24 +90,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  logoImage: {
+    width: 150,
+    height: 100,
     marginBottom: 24,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: 'white',
-    fontFamily: Platform.select({
-      ios: 'SpaceGrotesk-Bold',
-      android: 'SpaceGrotesk-Bold',
-      default: 'sans-serif',
-    }),
   },
   appName: {
     fontSize: 28,

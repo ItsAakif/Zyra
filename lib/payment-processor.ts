@@ -33,10 +33,21 @@ export class PaymentProcessor {
     try {
       const authState = authService.getAuthState();
       
-      if (!authState.isAuthenticated || !authState.algorandAccount) {
+      if (!authState.isAuthenticated || !authState.user?.algorand_address) {
         return {
           success: false,
-          error: 'User not authenticated or Algorand account not found',
+          error: 'User not authenticated or wallet not connected',
+        };
+      }
+
+      // Get the connected wallet account
+      const { WalletConnectionService } = require('./wallet-connection');
+      const primaryWallet = await WalletConnectionService.getPrimaryWallet();
+      
+      if (!primaryWallet) {
+        return {
+          success: false,
+          error: 'No wallet connected. Please connect a wallet first.',
         };
       }
 
@@ -54,12 +65,12 @@ export class PaymentProcessor {
       const usdAmount = fiatAmount * exchangeRate.rate;
       const algoAmount = usdAmount / algoPrice;
 
-      // Validate sufficient balance
-      const currentBalance = await algorandService.getAccountBalance(authState.algorandAccount.address);
+      // Validate sufficient balance using the connected wallet
+      const currentBalance = await algorandService.getAccountBalance(primaryWallet.address);
       if (currentBalance < algoAmount + 0.001) { // Include transaction fee
         return {
           success: false,
-          error: 'Insufficient ALGO balance',
+          error: `Insufficient ALGO balance. Current: ${currentBalance.toFixed(4)}, Required: ${(algoAmount + 0.001).toFixed(4)}`,
         };
       }
 
@@ -76,9 +87,18 @@ export class PaymentProcessor {
         note: paymentNote,
       };
 
+      // Get the actual Algorand account for transactions
+      const algorandAccount = await algorandService.getStoredAccount();
+      if (!algorandAccount) {
+        return {
+          success: false,
+          error: 'Wallet account not accessible. Please reconnect your wallet.',
+        };
+      }
+
       // Process the Algorand transaction
       const algorandTxId = await this.processAlgorandPayment(
-        authState.algorandAccount,
+        algorandAccount,
         qrData,
         algoAmount,
         JSON.stringify(paymentMetadata)
@@ -89,8 +109,8 @@ export class PaymentProcessor {
       if (zyroReward > 0) {
         try {
           await algorandService.sendZyroReward(
-            authState.algorandAccount,
-            authState.algorandAccount.address,
+            algorandAccount,
+            algorandAccount.address,
             zyroReward,
             `Reward for payment ${algorandTxId}`
           );

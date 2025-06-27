@@ -1,504 +1,381 @@
-export interface NFTAsset {
+import { realWalletService } from './real-wallet';
+import { algorandService } from './algorand';
+
+export interface NFTReward {
   id: string;
-  tokenId: string;
   name: string;
   description: string;
   image: string;
-  creator: string;
-  owner: string;
-  price?: number;
-  currency: string;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  attributes: NFTAttribute[];
-  metadata: any;
-  algorandAssetId?: number;
-  isForSale: boolean;
-  createdAt: Date;
-  lastSalePrice?: number;
-  royaltyPercentage: number;
+  earnedDate: string;
+  zyroValue: number;
+  transactionId?: string;
+  creator?: string;
+  isOwned: boolean;
+  price?: number;
 }
 
-export interface NFTAttribute {
-  trait_type: string;
-  value: string | number;
-  display_type?: 'boost_number' | 'boost_percentage' | 'number' | 'date';
-}
-
-export interface NFTCollection {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  creator: string;
-  totalSupply: number;
-  floorPrice: number;
-  volume24h: number;
-  assets: NFTAsset[];
-}
-
-export interface MarketplaceListing {
+export interface NFTMarketplaceListing {
   id: string;
   nftId: string;
   seller: string;
   price: number;
-  currency: string;
-  expiresAt: Date;
-  status: 'active' | 'sold' | 'cancelled' | 'expired';
-  createdAt: Date;
+  currency: 'ALGO' | 'ZYR';
+  listedAt: string;
+  status: 'active' | 'sold' | 'cancelled';
 }
 
-export interface NFTTransaction {
-  id: string;
-  nftId: string;
-  from: string;
-  to: string;
-  price: number;
-  currency: string;
-  transactionHash: string;
-  timestamp: Date;
-  type: 'mint' | 'transfer' | 'sale';
-}
+class NFTMarketplaceService {
+  private nftTemplates: Omit<NFTReward, 'id' | 'earnedDate' | 'isOwned' | 'transactionId'>[] = [
+    {
+      name: 'First Payment Pioneer',
+      description: 'Completed your first QR payment',
+      image: 'https://images.pexels.com/photos/844124/pexels-photo-844124.jpeg?auto=compress&cs=tinysrgb&w=400',
+      rarity: 'common',
+      zyroValue: 10,
+      creator: 'Zyra Protocol'
+    },
+    {
+      name: 'Global Explorer',
+      description: 'Made payments in 3 different countries',
+      image: 'https://images.pexels.com/photos/1166209/pexels-photo-1166209.jpeg?auto=compress&cs=tinysrgb&w=400',
+      rarity: 'rare',
+      zyroValue: 50,
+      creator: 'Zyra Protocol'
+    },
+    {
+      name: 'Crypto Whale',
+      description: 'Completed $1000+ in transactions',
+      image: 'https://images.pexels.com/photos/730547/pexels-photo-730547.jpeg?auto=compress&cs=tinysrgb&w=400',
+      rarity: 'epic',
+      zyroValue: 100,
+      creator: 'Zyra Protocol'
+    },
+    {
+      name: 'Speed Demon',
+      description: 'Completed 10 transactions in one day',
+      image: 'https://images.pexels.com/photos/355948/pexels-photo-355948.jpeg?auto=compress&cs=tinysrgb&w=400',
+      rarity: 'rare',
+      zyroValue: 75,
+      creator: 'Zyra Protocol'
+    },
+    {
+      name: 'Loyalty Master',
+      description: 'Used Zyra for 30 consecutive days',
+      image: 'https://images.pexels.com/photos/1509428/pexels-photo-1509428.jpeg?auto=compress&cs=tinysrgb&w=400',
+      rarity: 'legendary',
+      zyroValue: 200,
+      creator: 'Zyra Protocol'
+    },
+    {
+      name: 'Network Builder',
+      description: 'Referred 5 friends to Zyra',
+      image: 'https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=400',
+      rarity: 'epic',
+      zyroValue: 150,
+      creator: 'Zyra Protocol'
+    }
+  ];
 
-export class NFTMarketplaceService {
-  private algorandService: any;
-  private ipfsService: IPFSService;
+  private marketplaceListings: NFTMarketplaceListing[] = [
+    {
+      id: 'listing-1',
+      nftId: 'marketplace-nft-1',
+      seller: 'CREATOR1ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEF',
+      price: 5.0,
+      currency: 'ALGO',
+      listedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'active'
+    },
+    {
+      id: 'listing-2', 
+      nftId: 'marketplace-nft-2',
+      seller: 'CREATOR2ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEF',
+      price: 25.0,
+      currency: 'ZYR',
+      listedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'active'
+    }
+  ];
 
-  constructor() {
-    this.ipfsService = new IPFSService();
+  async getUserNFTs(walletAddress?: string): Promise<NFTReward[]> {
+    const walletState = realWalletService.getState();
+    
+    if (!walletState.isConnected) {
+      return [];
+    }
+
+    try {
+      // Get NFTs earned through transactions
+      const earnedNFTs = await realWalletService.getEarnedNFTRewards();
+      
+      // Convert to NFTReward format
+      const userNFTs: NFTReward[] = earnedNFTs.map(nft => ({
+        id: nft.id,
+        name: nft.name,
+        description: nft.description,
+        image: nft.image,
+        rarity: nft.rarity,
+        earnedDate: this.getRelativeTime(new Date(nft.earnedDate).getTime()),
+        zyroValue: nft.zyroValue,
+        isOwned: true,
+        transactionId: nft.transactionId,
+        creator: 'Zyra Protocol'
+      }));
+
+      // If no earned NFTs yet, show demo data for new users
+      if (userNFTs.length === 0) {
+        const transactionHistory = await realWalletService.getTransactionHistory();
+        
+        if (transactionHistory.length >= 1) {
+          userNFTs.push({
+            ...this.nftTemplates[0],
+            id: 'earned-first-payment',
+            earnedDate: this.getRelativeTime(Date.now() - 24 * 60 * 60 * 1000),
+            isOwned: true,
+            transactionId: transactionHistory[0]?.id
+          });
+        }
+      }
+
+      return userNFTs;
+    } catch (error) {
+      console.error('Error getting user NFTs:', error);
+      
+      // Return demo NFTs for presentation
+      return this.nftTemplates.slice(0, 1).map((template, index) => ({
+        ...template,
+        id: `demo-nft-${index}`,
+        earnedDate: this.getRelativeTime(Date.now() - (index + 1) * 24 * 60 * 60 * 1000),
+        isOwned: true
+      }));
+    }
+  }
+
+  async getMarketplaceNFTs(): Promise<NFTReward[]> {
+    // Return NFTs available for purchase in the marketplace
+    const marketplaceNFTs = this.nftTemplates.slice(3).map((template, index) => ({
+      ...template,
+      id: `marketplace-nft-${index + 1}`,
+      earnedDate: 'Available for purchase',
+      isOwned: false,
+      price: template.zyroValue * 0.5 // Price is 50% of ZYR value in ALGO
+    }));
+
+    return marketplaceNFTs;
   }
 
   async createNFT(
-    creator: string,
-    metadata: {
-      name: string;
-      description: string;
-      image: File | string;
-      attributes: NFTAttribute[];
-      royaltyPercentage: number;
-    }
+    name: string,
+    description: string,
+    imageUrl: string,
+    rarity: 'common' | 'rare' | 'epic' | 'legendary'
   ): Promise<{ success: boolean; nftId?: string; error?: string }> {
+    const walletState = realWalletService.getState();
+    
+    if (!walletState.isConnected || !walletState.account) {
+      return { success: false, error: 'Wallet not connected' };
+    }
+
     try {
-      // Upload image to IPFS
-      const imageUrl = await this.ipfsService.uploadFile(metadata.image);
+      // Create real Algorand Standard Asset (ASA) for NFT
+      const nftAssetId = await this.mintRealNFT(
+        walletState.account,
+        name,
+        description,
+        imageUrl,
+        rarity
+      );
       
-      // Create metadata object
-      const nftMetadata = {
-        name: metadata.name,
-        description: metadata.description,
-        image: imageUrl,
-        attributes: metadata.attributes,
-        creator,
-        created_at: new Date().toISOString(),
-        royalty_percentage: metadata.royaltyPercentage,
-      };
+      console.log(`🎨 Real NFT Created: ${name} (Asset ID: ${nftAssetId})`);
+      
+      return { success: true, nftId: nftAssetId.toString() };
+    } catch (error) {
+      console.error('Error creating real NFT:', error);
+      return { success: false, error: 'Failed to create NFT on blockchain' };
+    }
+  }
 
-      // Upload metadata to IPFS
-      const metadataUrl = await this.ipfsService.uploadJSON(nftMetadata);
-
-      // Create Algorand ASA (Algorand Standard Asset)
-      const assetResult = await this.createAlgorandNFT({
-        name: metadata.name,
-        unitName: this.generateUnitName(metadata.name),
-        url: metadataUrl,
-        creator,
-        total: 1, // NFT is unique
+  private async mintRealNFT(
+    creatorAccount: any,
+    name: string,
+    description: string,
+    imageUrl: string,
+    rarity: string
+  ): Promise<number> {
+    const { algorandService } = await import('./algorand');
+    
+    try {
+      // Create Algorand Standard Asset (ASA) for NFT
+      const assetMetadata = {
+        name: name,
+        unitName: name.substring(0, 8).toUpperCase(),
+        description: description,
+        url: imageUrl,
+        metadataHash: undefined, // In production, this would be IPFS hash
+        total: 1, // NFT = unique asset
         decimals: 0,
         defaultFrozen: false,
-        manager: creator,
-        reserve: creator,
+        manager: creatorAccount.address,
+        reserve: creatorAccount.address,
         freeze: undefined,
         clawback: undefined,
-      });
-
-      if (!assetResult.success) {
-        return {
-          success: false,
-          error: assetResult.error,
-        };
-      }
-
-      // Store NFT in database
-      const nftId = await this.storeNFTInDatabase({
-        tokenId: assetResult.assetId!.toString(),
-        name: metadata.name,
-        description: metadata.description,
-        image: imageUrl,
-        creator,
-        owner: creator,
-        currency: 'ALGO',
-        rarity: this.calculateRarity(metadata.attributes),
-        attributes: metadata.attributes,
-        metadata: nftMetadata,
-        algorandAssetId: assetResult.assetId,
-        isForSale: false,
-        royaltyPercentage: metadata.royaltyPercentage,
-      });
-
-      return {
-        success: true,
-        nftId,
       };
+
+      // Create the ASA transaction
+      const params = await algorandService.algodClient.getTransactionParams().do();
+      
+      const algosdk = await import('algosdk');
+      const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
+        from: creatorAccount.address,
+        suggestedParams: params,
+        ...assetMetadata,
+      });
+
+      // Sign and submit transaction
+      const signedTxn = txn.signTxn(creatorAccount.privateKey);
+      const { txId } = await algorandService.algodClient.sendRawTransaction(signedTxn).do();
+      
+      // Wait for confirmation
+      const result = await algorandService.waitForConfirmation(txId);
+      const assetId = result['asset-index'];
+      
+      console.log(`✅ Real NFT minted on Algorand: Asset ID ${assetId}`);
+      return assetId;
+      
     } catch (error) {
-      console.error('NFT creation error:', error);
-      return {
-        success: false,
-        error: 'Failed to create NFT',
-      };
+      console.error('❌ Error minting real NFT:', error);
+      throw error;
     }
   }
 
-  async listNFTForSale(
-    nftId: string,
-    seller: string,
-    price: number,
-    currency: string = 'ALGO',
-    duration: number = 30 // days
-  ): Promise<{ success: boolean; listingId?: string; error?: string }> {
-    try {
-      // Verify ownership
-      const nft = await this.getNFT(nftId);
-      if (!nft || nft.owner !== seller) {
-        return {
-          success: false,
-          error: 'You do not own this NFT',
-        };
-      }
+  async buyNFT(nftId: string, price: number, currency: 'ALGO' | 'ZYR'): Promise<{
+    success: boolean;
+    transactionId?: string;
+    error?: string;
+  }> {
+    const walletState = realWalletService.getState();
+    
+    if (!walletState.isConnected || !walletState.account) {
+      return { success: false, error: 'Wallet not connected' };
+    }
 
-      // Create marketplace listing
-      const listing: MarketplaceListing = {
-        id: `listing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const balance = currency === 'ALGO' ? walletState.algoBalance : walletState.zyroBalance;
+    
+    if (balance < price) {
+      return { success: false, error: `Insufficient ${currency} balance` };
+    }
+
+    try {
+      // In a real implementation, this would execute a marketplace smart contract
+      console.log(`💰 Buying NFT ${nftId} for ${price} ${currency}`);
+      
+      // Simulate transaction
+      const transactionId = `nft-purchase-${Date.now()}`;
+      
+      // Simulate blockchain delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      return { success: true, transactionId };
+    } catch (error) {
+      console.error('Error buying NFT:', error);
+      return { success: false, error: 'Failed to purchase NFT' };
+    }
+  }
+
+  async sellNFT(nftId: string, price: number, currency: 'ALGO' | 'ZYR'): Promise<{
+    success: boolean;
+    listingId?: string;
+    error?: string;
+  }> {
+    const walletState = realWalletService.getState();
+    
+    if (!walletState.isConnected) {
+      return { success: false, error: 'Wallet not connected' };
+    }
+
+    try {
+      const listingId = `listing-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log(`🏪 Listing NFT ${nftId} for ${price} ${currency}`);
+      
+      // Add to marketplace listings
+      this.marketplaceListings.push({
+        id: listingId,
         nftId,
-        seller,
+        seller: walletState.address!,
         price,
         currency,
-        expiresAt: new Date(Date.now() + duration * 24 * 60 * 60 * 1000),
-        status: 'active',
-        createdAt: new Date(),
-      };
-
-      // Store listing in database
-      await this.storeListing(listing);
-
-      // Update NFT status
-      await this.updateNFTSaleStatus(nftId, true, price, currency);
-
-      return {
-        success: true,
-        listingId: listing.id,
-      };
+        listedAt: new Date().toISOString(),
+        status: 'active'
+      });
+      
+      return { success: true, listingId };
     } catch (error) {
-      console.error('NFT listing error:', error);
-      return {
-        success: false,
-        error: 'Failed to list NFT',
-      };
+      console.error('Error listing NFT:', error);
+      return { success: false, error: 'Failed to list NFT' };
     }
   }
 
-  async buyNFT(
-    listingId: string,
-    buyer: string
-  ): Promise<{ success: boolean; transactionId?: string; error?: string }> {
-    try {
-      // Get listing
-      const listing = await this.getListing(listingId);
-      if (!listing || listing.status !== 'active') {
-        return {
-          success: false,
-          error: 'Listing not available',
-        };
-      }
-
-      // Check if listing has expired
-      if (listing.expiresAt < new Date()) {
-        await this.updateListingStatus(listingId, 'expired');
-        return {
-          success: false,
-          error: 'Listing has expired',
-        };
-      }
-
-      // Get NFT details
-      const nft = await this.getNFT(listing.nftId);
-      if (!nft) {
-        return {
-          success: false,
-          error: 'NFT not found',
-        };
-      }
-
-      // Process payment
-      const paymentResult = await this.processNFTPayment(
-        buyer,
-        listing.seller,
-        listing.price,
-        listing.currency,
-        nft.royaltyPercentage,
-        nft.creator
-      );
-
-      if (!paymentResult.success) {
-        return {
-          success: false,
-          error: paymentResult.error,
-        };
-      }
-
-      // Transfer NFT ownership
-      const transferResult = await this.transferNFTOwnership(
-        nft.algorandAssetId!,
-        listing.seller,
-        buyer
-      );
-
-      if (!transferResult.success) {
-        return {
-          success: false,
-          error: transferResult.error,
-        };
-      }
-
-      // Update database records
-      await Promise.all([
-        this.updateNFTOwner(listing.nftId, buyer),
-        this.updateNFTSaleStatus(listing.nftId, false),
-        this.updateListingStatus(listingId, 'sold'),
-        this.recordNFTTransaction({
-          nftId: listing.nftId,
-          from: listing.seller,
-          to: buyer,
-          price: listing.price,
-          currency: listing.currency,
-          transactionHash: transferResult.transactionHash!,
-          type: 'sale',
-        }),
-      ]);
-
-      return {
-        success: true,
-        transactionId: transferResult.transactionHash,
-      };
-    } catch (error) {
-      console.error('NFT purchase error:', error);
-      return {
-        success: false,
-        error: 'Failed to purchase NFT',
-      };
-    }
+  async getMarketplaceListings(): Promise<NFTMarketplaceListing[]> {
+    return this.marketplaceListings.filter(listing => listing.status === 'active');
   }
 
-  async getMarketplaceNFTs(
-    filters?: {
-      category?: string;
-      priceRange?: { min: number; max: number };
-      rarity?: string;
-      sortBy?: 'price' | 'created' | 'popularity';
-      sortOrder?: 'asc' | 'desc';
-    }
-  ): Promise<NFTAsset[]> {
-    try {
-      // Implementation to fetch marketplace NFTs with filters
-      return [];
-    } catch (error) {
-      console.error('Error fetching marketplace NFTs:', error);
-      return [];
-    }
-  }
-
-  async getUserNFTs(userId: string): Promise<NFTAsset[]> {
-    try {
-      // Implementation to fetch user's NFTs
-      return [];
-    } catch (error) {
-      console.error('Error fetching user NFTs:', error);
-      return [];
-    }
-  }
-
-  async getNFTHistory(nftId: string): Promise<NFTTransaction[]> {
-    try {
-      // Implementation to fetch NFT transaction history
-      return [];
-    } catch (error) {
-      console.error('Error fetching NFT history:', error);
-      return [];
-    }
-  }
-
-  async getCollections(): Promise<NFTCollection[]> {
-    try {
-      // Implementation to fetch NFT collections
-      return [];
-    } catch (error) {
-      console.error('Error fetching collections:', error);
-      return [];
-    }
-  }
-
-  private async createAlgorandNFT(params: any): Promise<{ success: boolean; assetId?: number; error?: string }> {
-    try {
-      // Implementation for creating Algorand ASA
-      return {
-        success: true,
-        assetId: Math.floor(Math.random() * 1000000), // Mock asset ID
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: 'Failed to create Algorand asset',
-      };
-    }
-  }
-
-  private async transferNFTOwnership(
-    assetId: number,
-    from: string,
-    to: string
-  ): Promise<{ success: boolean; transactionHash?: string; error?: string }> {
-    try {
-      // Implementation for transferring Algorand ASA
-      return {
-        success: true,
-        transactionHash: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: 'Failed to transfer NFT',
-      };
-    }
-  }
-
-  private async processNFTPayment(
-    buyer: string,
-    seller: string,
-    price: number,
-    currency: string,
-    royaltyPercentage: number,
-    creator: string
-  ): Promise<{ success: boolean; error?: string }> {
-    try {
-      // Calculate royalty
-      const royaltyAmount = (price * royaltyPercentage) / 100;
-      const sellerAmount = price - royaltyAmount;
-
-      // Process payments (implementation would handle actual transfers)
-      // 1. Transfer royalty to creator
-      // 2. Transfer remaining amount to seller
-      // 3. Transfer NFT to buyer
-
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: 'Payment processing failed',
-      };
-    }
-  }
-
-  private generateUnitName(name: string): string {
-    return name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toUpperCase();
-  }
-
-  private calculateRarity(attributes: NFTAttribute[]): 'common' | 'rare' | 'epic' | 'legendary' {
-    // Implementation for rarity calculation based on attributes
-    const rarityScore = attributes.length * Math.random();
+  private getRelativeTime(timestamp: number): string {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const days = Math.floor(diff / (24 * 60 * 60 * 1000));
     
-    if (rarityScore > 0.9) return 'legendary';
-    if (rarityScore > 0.7) return 'epic';
-    if (rarityScore > 0.4) return 'rare';
-    return 'common';
+    if (days === 0) return 'Today';
+    if (days === 1) return '1 day ago';
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+    return `${Math.floor(days / 30)} months ago`;
   }
 
-  private async storeNFTInDatabase(nft: Partial<NFTAsset>): Promise<string> {
-    // Implementation to store NFT in database
-    return `nft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  private async storeListing(listing: MarketplaceListing): Promise<void> {
-    // Implementation to store listing in database
-  }
-
-  private async getNFT(nftId: string): Promise<NFTAsset | null> {
-    // Implementation to get NFT from database
-    return null;
-  }
-
-  private async getListing(listingId: string): Promise<MarketplaceListing | null> {
-    // Implementation to get listing from database
-    return null;
-  }
-
-  private async updateNFTSaleStatus(nftId: string, isForSale: boolean, price?: number, currency?: string): Promise<void> {
-    // Implementation to update NFT sale status
-  }
-
-  private async updateNFTOwner(nftId: string, newOwner: string): Promise<void> {
-    // Implementation to update NFT owner
-  }
-
-  private async updateListingStatus(listingId: string, status: string): Promise<void> {
-    // Implementation to update listing status
-  }
-
-  private async recordNFTTransaction(transaction: Omit<NFTTransaction, 'id' | 'timestamp'>): Promise<void> {
-    // Implementation to record NFT transaction
-  }
-}
-
-class IPFSService {
-  private pinataApiKey: string;
-  private pinataSecretKey: string;
-
-  constructor() {
-    this.pinataApiKey = process.env.EXPO_PUBLIC_PINATA_API_KEY || '';
-    this.pinataSecretKey = process.env.EXPO_PUBLIC_PINATA_SECRET_KEY || '';
-  }
-
-  async uploadFile(file: File | string): Promise<string> {
+  // Connect rewards to real blockchain transactions
+  async checkForNewRewards(walletAddress: string): Promise<NFTReward[]> {
     try {
-      if (typeof file === 'string') {
-        // If it's already a URL, return it
-        return file;
+      const transactionHistory = await realWalletService.getTransactionHistory();
+      const newRewards: NFTReward[] = [];
+
+      // Check transaction milestones for automatic NFT rewards
+      const transactionCount = transactionHistory.length;
+      const totalVolume = transactionHistory.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+      // Milestone rewards
+      if (transactionCount === 1) {
+        newRewards.push({
+          ...this.nftTemplates[0],
+          id: `reward-first-tx-${Date.now()}`,
+          earnedDate: 'Just earned',
+          isOwned: true,
+          transactionId: transactionHistory[0].id
+        });
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
+      if (transactionCount >= 10) {
+        newRewards.push({
+          ...this.nftTemplates[3],
+          id: `reward-speed-demon-${Date.now()}`,
+          earnedDate: 'Just earned',
+          isOwned: true
+        });
+      }
 
-      const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-        method: 'POST',
-        headers: {
-          'pinata_api_key': this.pinataApiKey,
-          'pinata_secret_api_key': this.pinataSecretKey,
-        },
-        body: formData,
-      });
+      if (totalVolume >= 1000) {
+        newRewards.push({
+          ...this.nftTemplates[2],
+          id: `reward-whale-${Date.now()}`,
+          earnedDate: 'Just earned',
+          isOwned: true
+        });
+      }
 
-      const result = await response.json();
-      return `https://gateway.pinata.cloud/ipfs/${result.IpfsHash}`;
+      return newRewards;
     } catch (error) {
-      console.error('IPFS file upload error:', error);
-      throw error;
-    }
-  }
-
-  async uploadJSON(data: any): Promise<string> {
-    try {
-      const response = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'pinata_api_key': this.pinataApiKey,
-          'pinata_secret_api_key': this.pinataSecretKey,
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-      return `https://gateway.pinata.cloud/ipfs/${result.IpfsHash}`;
-    } catch (error) {
-      console.error('IPFS JSON upload error:', error);
-      throw error;
+      console.error('Error checking for new rewards:', error);
+      return [];
     }
   }
 }

@@ -4,7 +4,6 @@ import { Platform } from 'react-native';
 
 export interface AuthState {
   user: User | null;
-  algorandAccount: any | null;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -19,7 +18,6 @@ class AuthService {
   private listeners: ((state: AuthState) => void)[] = [];
   private currentState: AuthState = {
     user: null,
-    algorandAccount: null,
     isLoading: true,
     isAuthenticated: false,
   };
@@ -38,8 +36,8 @@ class AuthService {
     
     try {
       if (!supabase) {
-        console.log('Supabase not configured, running in demo mode');
-        this.setDemoMode();
+        console.error('Supabase not configured. Please provide environment variables.');
+        this.updateState({ isLoading: false });
         return;
       }
 
@@ -50,16 +48,12 @@ class AuthService {
         const userData = await this.fetchUserData(session.user.id);
         this.updateState({
           user: userData,
-          algorandAccount: {
-            address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-          },
           isLoading: false,
           isAuthenticated: true,
         });
       } else {
         this.updateState({
           user: null,
-          algorandAccount: null,
           isLoading: false,
           isAuthenticated: false,
         });
@@ -72,16 +66,12 @@ class AuthService {
           const userData = await this.fetchUserData(session.user.id);
           this.updateState({
             user: userData,
-            algorandAccount: {
-              address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-            },
             isLoading: false,
             isAuthenticated: true,
           });
         } else {
           this.updateState({
             user: null,
-            algorandAccount: null,
             isLoading: false,
             isAuthenticated: false,
           });
@@ -89,34 +79,8 @@ class AuthService {
       });
     } catch (error) {
       console.error('Auth initialization error:', error);
-      this.setDemoMode();
+      this.updateState({ isLoading: false });
     }
-  }
-
-  private setDemoMode() {
-    const delay = Platform.OS === 'android' ? 1000 : 500;
-    
-    setTimeout(() => {
-      const demoUser: User = {
-        id: 'demo-user',
-        email: 'demo@zyra.app',
-        full_name: 'Alex Chen',
-        kyc_verified: true,
-        subscription_tier: 'pro',
-        anonymous_mode: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      this.updateState({
-        user: demoUser,
-        algorandAccount: {
-          address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-        },
-        isLoading: false,
-        isAuthenticated: true,
-      });
-    }, delay);
   }
 
   private async fetchUserData(userId: string): Promise<User | null> {
@@ -175,28 +139,7 @@ class AuthService {
   async signIn(email: string, password: string): Promise<AuthResult> {
     try {
       if (!supabase) {
-        // Demo mode - simulate successful login
-        const demoUser: User = {
-          id: 'demo-user',
-          email,
-          full_name: 'Alex Chen',
-          kyc_verified: true,
-          subscription_tier: 'pro',
-          anonymous_mode: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        
-        this.updateState({
-          user: demoUser,
-          algorandAccount: {
-            address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-          },
-          isLoading: false,
-          isAuthenticated: true,
-        });
-        
-        return { success: true, user: demoUser };
+        return { success: false, error: 'Supabase not configured' };
       }
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -217,28 +160,7 @@ class AuthService {
   async signUp(email: string, password: string, fullName: string): Promise<AuthResult> {
     try {
       if (!supabase) {
-        // Demo mode - simulate successful signup
-        const demoUser: User = {
-          id: 'demo-user',
-          email,
-          full_name: fullName,
-          kyc_verified: false,
-          subscription_tier: 'free',
-          anonymous_mode: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        
-        this.updateState({
-          user: demoUser,
-          algorandAccount: {
-            address: 'DEMO123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-          },
-          isLoading: false,
-          isAuthenticated: true,
-        });
-        
-        return { success: true, user: demoUser };
+        return { success: false, error: 'Supabase not configured' };
       }
 
       const { data, error } = await supabase.auth.signUp({
@@ -264,14 +186,7 @@ class AuthService {
   async signOut(): Promise<AuthResult> {
     try {
       if (!supabase) {
-        // Demo mode - simulate signout
-        this.updateState({
-          user: null,
-          algorandAccount: null,
-          isLoading: false,
-          isAuthenticated: false,
-        });
-        return { success: true };
+        return { success: false, error: 'Supabase not configured' };
       }
 
       const { error } = await supabase.auth.signOut();
@@ -289,7 +204,7 @@ class AuthService {
   async resetPassword(email: string): Promise<AuthResult> {
     try {
       if (!supabase) {
-        return { success: true }; // Demo mode
+        return { success: false, error: 'Supabase not configured' };
       }
 
       const { error } = await supabase.auth.resetPasswordForEmail(email);

@@ -16,10 +16,14 @@ import { X, Flashlight, FlashlightOff, Image as ImageIcon, CircleCheck as CheckC
 import { authService } from '@/lib/auth';
 import { PaymentProcessor } from '@/lib/payment-processor';
 import { QRParser } from '@/lib/qr-parser';
+import { realWalletService } from '@/lib/real-wallet';
+
+import { useTheme } from '@/lib/theme';
 
 const { width, height } = Dimensions.get('window');
 
 export default function ScanScreen() {
+  const { theme } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -27,8 +31,18 @@ export default function ScanScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [connectedWallet, setConnectedWallet] = useState(realWalletService.getState());
 
   const authState = authService.getAuthState();
+
+  useEffect(() => {
+    // Listen for wallet changes
+    const unsubscribe = realWalletService.subscribe((walletState) => {
+      console.log('🔄 [SCAN] Wallet changed:', walletState.isConnected ? walletState.address?.slice(0, 8) + '...' : 'disconnected');
+      setConnectedWallet(walletState);
+    });
+    return unsubscribe;
+  }, []);
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scanned) return;
@@ -86,11 +100,11 @@ export default function ScanScreen() {
 
   if (!permission.granted) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.permissionContainer}>
           <AlertCircle size={64} color="#EF4444" />
-          <Text style={styles.permissionTitle}>Camera Permission Required</Text>
-          <Text style={styles.permissionText}>
+          <Text style={[styles.permissionTitle, { color: theme.colors.text }]}>Camera Permission Required</Text>
+          <Text style={[styles.permissionText, { color: theme.colors.textSecondary }]}>
             We need camera access to scan QR codes for payments
           </Text>
           <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
@@ -101,15 +115,36 @@ export default function ScanScreen() {
     );
   }
 
-  if (!authState.isAuthenticated || !authState.algorandAccount) {
+  if (!authState.isAuthenticated || !connectedWallet?.isConnected) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.permissionContainer}>
           <AlertCircle size={64} color="#F59E0B" />
-          <Text style={styles.permissionTitle}>Wallet Not Connected</Text>
-          <Text style={styles.permissionText}>
-            Please connect your Algorand wallet to make payments
+          <Text style={[styles.permissionTitle, { color: theme.colors.text }]}>
+            {!authState.isAuthenticated ? 'Please Sign In' : 'Wallet Not Connected'}
           </Text>
+          <Text style={[styles.permissionText, { color: theme.colors.textSecondary }]}>
+            {!authState.isAuthenticated 
+              ? 'Sign in to your account to continue' 
+              : 'Connect a test wallet to make payments with any QR code'
+            }
+          </Text>
+          {authState.isAuthenticated && (
+            <TouchableOpacity 
+              style={styles.connectWalletButton}
+              onPress={() => {
+                console.log('🔄 [SCAN] Connect Test Wallet button pressed');
+                try {
+                  realWalletService.createTestWallet();
+                  console.log('🔄 [SCAN] Dialog should be showing...');
+                } catch (error) {
+                  console.error('❌ [SCAN] Error showing dialog:', error);
+                }
+              }}
+            >
+              <Text style={styles.connectWalletButtonText}>Connect Test Wallet</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
     );
@@ -174,9 +209,9 @@ export default function ScanScreen() {
         onRequestClose={resetScanner}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Confirm Payment</Text>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Confirm Payment</Text>
               <TouchableOpacity onPress={resetScanner}>
                 <X size={24} color="#6B7280" />
               </TouchableOpacity>
@@ -217,7 +252,10 @@ export default function ScanScreen() {
                 <View style={styles.walletInfo}>
                   <Text style={styles.walletLabel}>Paying from</Text>
                   <Text style={styles.walletAddress}>
-                    {authState.algorandAccount?.address.slice(0, 8)}...{authState.algorandAccount?.address.slice(-8)}
+                    {connectedWallet?.name || 'Unknown Wallet'}
+                  </Text>
+                  <Text style={styles.walletAddressSmall}>
+                    {connectedWallet?.address.slice(0, 8)}...{connectedWallet?.address.slice(-8)}
                   </Text>
                 </View>
               </View>
@@ -243,6 +281,7 @@ export default function ScanScreen() {
           </View>
         </View>
       </Modal>
+
     </SafeAreaView>
   );
 }
@@ -382,6 +421,19 @@ const styles = StyleSheet.create({
     color: 'white',
     fontFamily: 'Inter-SemiBold',
   },
+  connectWalletButton: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  connectWalletButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    fontFamily: 'Inter-SemiBold',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -488,6 +540,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
     fontFamily: 'Inter-Medium',
+  },
+  walletAddressSmall: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: 'Inter-Regular',
+    marginTop: 2,
   },
   modalActions: {
     flexDirection: 'row',

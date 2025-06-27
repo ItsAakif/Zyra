@@ -1,3 +1,6 @@
+// Import crypto polyfills FIRST
+import '../polyfills';
+
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +21,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { authService, AuthState } from '@/lib/auth';
 import { Platform } from 'react-native';
+import { ThemeProvider } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,7 +30,6 @@ export default function RootLayout() {
   
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
-    algorandAccount: null,
     isLoading: true,
     isAuthenticated: false,
   });
@@ -67,7 +70,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <ThemeProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -75,6 +78,6 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
-    </>
+    </ThemeProvider>
   );
 }

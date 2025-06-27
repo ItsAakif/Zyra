@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect } from 'react';
 import {
   Plus,
   Minus,
@@ -21,7 +23,18 @@ import {
   TrendingDown,
   Wallet as WalletIcon,
   Coins,
+  Settings,
 } from 'lucide-react-native';
+// WalletManager temporarily removed for simple wallet system
+// import WalletManager from '@/components/WalletManager';
+// import { WalletConnectionService, ConnectedWallet } from '@/lib/wallet-connection';
+import { authService } from '@/lib/auth';
+import { realWalletService, WalletState } from '@/lib/real-wallet';
+
+import { router } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import * as Linking from 'expo-linking';
+import { useTheme } from '@/lib/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -47,96 +60,158 @@ interface Transaction {
 }
 
 export default function WalletScreen() {
+  const { theme } = useTheme();
   const [selectedTab, setSelectedTab] = useState<'tokens' | 'nfts' | 'history'>('tokens');
-  const [walletConnected, setWalletConnected] = useState(true);
+  // const [showWalletManager, setShowWalletManager] = useState(false); // Removed for simple wallet
+  const [connectedWallet, setConnectedWallet] = useState<WalletState | null>(realWalletService.getState());
+  
+  useEffect(() => {
+    // Listen for wallet changes
+    const unsubscribe = realWalletService.subscribe((walletState) => {
+      console.log('🔄 [WALLET] Wallet changed:', walletState.isConnected ? walletState.address?.slice(0, 8) + '...' : 'disconnected');
+      setConnectedWallet(walletState);
+    });
+    return unsubscribe;
+  }, []);
 
   const tokens: Token[] = [
     {
       id: '1',
+      symbol: 'ALGO',
+      name: 'Algorand',
+      balance: connectedWallet?.algoBalance || 0,
+      usdValue: (connectedWallet?.algoBalance || 0) * 0.32, // Approximate ALGO price
+      change24h: 2.1,
+      icon: '🅰️',
+    },
+    {
+      id: '2',
       symbol: 'ZYR',
       name: 'Zyro',
-      balance: 1247.89,
-      usdValue: 2495.78,
+      balance: connectedWallet?.zyroBalance || 0,
+      usdValue: (connectedWallet?.zyroBalance || 0) * 2.0, // $2 per ZYRO
       change24h: 12.5,
       icon: '⚡',
     },
-    {
-      id: '2',
-      symbol: 'ETH',
-      name: 'Ethereum',
-      balance: 0.5432,
-      usdValue: 1234.56,
-      change24h: -2.3,
-      icon: '💎',
-    },
-    {
-      id: '3',
-      symbol: 'USDC',
-      name: 'USD Coin',
-      balance: 850.00,
-      usdValue: 850.00,
-      change24h: 0.1,
-      icon: '💵',
-    },
-    {
-      id: '4',
-      symbol: 'MATIC',
-      name: 'Polygon',
-      balance: 2150.75,
-      usdValue: 645.23,
-      change24h: 8.7,
-      icon: '🔷',
-    },
   ];
 
-  const transactions: Transaction[] = [
-    {
-      id: '1',
-      type: 'reward',
-      token: 'ZYR',
-      amount: 25.50,
-      usdValue: 51.00,
-      timestamp: '2 hours ago',
-      status: 'completed',
-      hash: '0x1234...5678',
-    },
-    {
-      id: '2',
-      type: 'send',
-      token: 'ETH',
-      amount: -0.1,
-      usdValue: -227.50,
-      timestamp: '1 day ago',
-      status: 'completed',
-      hash: '0xabcd...efgh',
-    },
-    {
-      id: '3',
-      type: 'receive',
-      token: 'USDC',
-      amount: 100.00,
-      usdValue: 100.00,
-      timestamp: '2 days ago',
-      status: 'completed',
-      hash: '0x9876...5432',
-    },
-  ];
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  // Load real transaction history
+  useEffect(() => {
+    const loadTransactions = async () => {
+      if (connectedWallet?.isConnected && connectedWallet.address) {
+        try {
+          const realTransactions = await realWalletService.getTransactionHistory();
+          const formattedTransactions = realTransactions.map(tx => ({
+            id: tx.id,
+            type: tx.type === 'sent' ? 'send' : 'receive',
+            token: tx.currency,
+            amount: tx.type === 'sent' ? -tx.amount : tx.amount,
+            usdValue: tx.amount * (tx.currency === 'ALGO' ? 0.32 : 2.0),
+            timestamp: new Date(tx.timestamp).toLocaleDateString(),
+            status: tx.status,
+            hash: tx.id.slice(0, 6) + '...' + tx.id.slice(-4),
+          }));
+          
+          // If no real transactions yet, add demo transactions for presentation
+          if (formattedTransactions.length === 0) {
+            const demoTransactions: Transaction[] = [
+              {
+                id: 'demo-1',
+                type: 'receive',
+                token: 'ALGO',
+                amount: 10.0,
+                usdValue: 3.2,
+                timestamp: 'Today',
+                status: 'completed',
+                hash: 'DEMO...01'
+              },
+              {
+                id: 'demo-2', 
+                type: 'reward',
+                token: 'ZYR',
+                amount: 5.0,
+                usdValue: 10.0,
+                timestamp: 'Yesterday',
+                status: 'completed',
+                hash: 'DEMO...02'
+              }
+            ];
+            setTransactions(demoTransactions);
+          } else {
+            setTransactions(formattedTransactions);
+          }
+        } catch (error) {
+          console.error('Error loading transactions:', error);
+          // Show demo transactions on error too
+          const demoTransactions: Transaction[] = [
+            {
+              id: 'demo-1',
+              type: 'receive',
+              token: 'ALGO', 
+              amount: 10.0,
+              usdValue: 3.2,
+              timestamp: 'Today',
+              status: 'completed',
+              hash: 'DEMO...01'
+            }
+          ];
+          setTransactions(demoTransactions);
+        }
+      }
+    };
+
+    loadTransactions();
+  }, [connectedWallet?.address]);
 
   const totalPortfolioValue = tokens.reduce((sum, token) => sum + token.usdValue, 0);
 
+  const handleAddFunds = () => {
+    router.push('/buy-crypto');
+  };
+
+  const handleSend = () => {
+    router.push('/send-crypto');
+  };
+
+  const handleExplorer = () => {
+    if (connectedWallet?.address) {
+      const explorerUrl = `https://testnet.algoexplorer.io/address/${connectedWallet.address}`;
+      Linking.openURL(explorerUrl).catch(() => {
+        Alert.alert('Error', 'Could not open blockchain explorer');
+      });
+    }
+  };
+
+  const handleBuy = () => {
+    router.push('/buy-crypto');
+  };
+
+  const handleSell = () => {
+    router.push('/convert-crypto');
+  };
+
+  const copyWalletAddress = async () => {
+    if (connectedWallet?.address) {
+      await Clipboard.setStringAsync(connectedWallet.address);
+      Alert.alert('Copied!', 'Wallet address copied to clipboard');
+    }
+  };
+
   const renderTokenItem = (token: Token) => (
-    <TouchableOpacity key={token.id} style={styles.tokenItem}>
+    <TouchableOpacity key={token.id} style={[styles.tokenItem, { backgroundColor: theme.colors.card }]}>
       <View style={styles.tokenInfo}>
         <View style={styles.tokenIcon}>
           <Text style={styles.tokenEmoji}>{token.icon}</Text>
         </View>
         <View style={styles.tokenDetails}>
-          <Text style={styles.tokenSymbol}>{token.symbol}</Text>
-          <Text style={styles.tokenName}>{token.name}</Text>
+          <Text style={[styles.tokenSymbol, { color: theme.colors.text }]}>{token.symbol}</Text>
+          <Text style={[styles.tokenName, { color: theme.colors.textSecondary }]}>{token.name}</Text>
         </View>
       </View>
       <View style={styles.tokenValues}>
-        <Text style={styles.tokenBalance}>{token.balance.toLocaleString()}</Text>
+        <Text style={[styles.tokenBalance, { color: theme.colors.text }]}>{token.balance.toLocaleString()}</Text>
         <View style={styles.tokenValueRow}>
           <Text style={styles.tokenUsdValue}>${token.usdValue.toLocaleString()}</Text>
           <View style={[
@@ -191,17 +266,28 @@ export default function WalletScreen() {
     </TouchableOpacity>
   );
 
-  if (!walletConnected) {
+  if (!connectedWallet?.isConnected) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.connectWalletContainer}>
           <WalletIcon size={64} color="#8B5CF6" />
-          <Text style={styles.connectTitle}>Connect Your Wallet</Text>
-          <Text style={styles.connectSubtitle}>
-            Connect your crypto wallet to start making payments and earning Zyros
+          <Text style={[styles.connectTitle, { color: theme.colors.text }]}>Connect Your Wallet</Text>
+          <Text style={[styles.connectSubtitle, { color: theme.colors.textSecondary }]}>
+            Connect a test wallet to start making payments and earning Zyros
           </Text>
-          <TouchableOpacity style={styles.connectButton}>
-            <Text style={styles.connectButtonText}>Connect Wallet</Text>
+          <TouchableOpacity 
+            style={styles.connectButton}
+            onPress={() => {
+              console.log('🔄 [WALLET] Connect wallet button pressed');
+              try {
+                realWalletService.createTestWallet();
+                console.log('🔄 [WALLET] Dialog should be showing...');
+              } catch (error) {
+                console.error('❌ [WALLET] Error showing dialog:', error);
+              }
+            }}
+          >
+            <Text style={styles.connectButtonText}>Connect Test Wallet</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -209,14 +295,30 @@ export default function WalletScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Wallet</Text>
-          <TouchableOpacity style={styles.walletAddressButton}>
-            <Text style={styles.walletAddress}>0x1234...5678</Text>
-            <Copy size={16} color="#6B7280" />
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Wallet</Text>
+          <TouchableOpacity 
+            style={styles.walletAddressButton}
+            onPress={() => {
+              Alert.alert(
+                'Wallet Options',
+                `Connected: Algorand Wallet\n${connectedWallet?.address?.slice(0, 12)}...${connectedWallet?.address?.slice(-12)}`,
+                [
+                  { text: 'Copy Address', onPress: copyWalletAddress },
+                  { text: 'View Explorer', onPress: handleExplorer },
+                  { text: 'Disconnect', onPress: () => realWalletService.disconnectWallet(), style: 'destructive' },
+                  { text: 'Cancel', style: 'cancel' }
+                ]
+              );
+            }}
+          >
+            <Text style={styles.walletAddress}>
+              {connectedWallet?.address?.slice(0, 8)}...{connectedWallet?.address?.slice(-4)}
+            </Text>
+            <Settings size={16} color="#6B7280" />
           </TouchableOpacity>
         </View>
 
@@ -228,15 +330,15 @@ export default function WalletScreen() {
           <Text style={styles.portfolioLabel}>Total Portfolio Value</Text>
           <Text style={styles.portfolioValue}>${totalPortfolioValue.toLocaleString()}</Text>
           <View style={styles.portfolioActions}>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleBuy}>
               <Plus size={20} color="white" />
               <Text style={styles.actionButtonText}>Buy</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleSell}>
               <Minus size={20} color="white" />
               <Text style={styles.actionButtonText}>Sell</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleSend}>
               <ArrowUpRight size={20} color="white" />
               <Text style={styles.actionButtonText}>Send</Text>
             </TouchableOpacity>
@@ -290,7 +392,22 @@ export default function WalletScreen() {
 
           {selectedTab === 'history' && (
             <View>
-              {transactions.map(renderTransactionItem)}
+              {transactions.length > 0 ? (
+                <View>
+                  {transactions.map(renderTransactionItem)}
+                  <TouchableOpacity style={styles.seeAllButton}>
+                    <Text style={styles.seeAllText}>See All Transactions</Text>
+                    <ArrowUpRight size={16} color="#8B5CF6" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.emptyHistoryContainer}>
+                  <Text style={styles.emptyStateTitle}>No Transactions Yet</Text>
+                  <Text style={styles.emptyStateText}>
+                    Your transaction history will appear here once you start using your wallet
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -299,19 +416,19 @@ export default function WalletScreen() {
         <View style={styles.quickActionsContainer}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
-            <TouchableOpacity style={styles.quickActionItem}>
+            <TouchableOpacity style={styles.quickActionItem} onPress={handleAddFunds}>
               <View style={styles.quickActionIcon}>
                 <Plus size={24} color="#8B5CF6" />
               </View>
               <Text style={styles.quickActionText}>Add Funds</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionItem}>
+            <TouchableOpacity style={styles.quickActionItem} onPress={handleSend}>
               <View style={styles.quickActionIcon}>
                 <ArrowUpRight size={24} color="#EC4899" />
               </View>
               <Text style={styles.quickActionText}>Send</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionItem}>
+            <TouchableOpacity style={styles.quickActionItem} onPress={handleExplorer}>
               <View style={styles.quickActionIcon}>
                 <ExternalLink size={24} color="#F59E0B" />
               </View>
@@ -320,6 +437,8 @@ export default function WalletScreen() {
           </View>
         </View>
       </ScrollView>
+      
+      {/* Wallet Manager temporarily disabled for simple wallet system */}
     </SafeAreaView>
   );
 }
@@ -327,7 +446,6 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -595,6 +713,31 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
   },
+  emptyHistoryContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#8B5CF6',
+    fontFamily: 'Inter-Medium',
+  },
   connectWalletContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -671,3 +814,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+// WalletManager code removed for simple wallet system

@@ -1,16 +1,22 @@
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Scan, Wallet, User, Zap } from 'lucide-react-native';
+import { Home, Scan, Wallet, User, Zap } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '@/lib/theme';
 
 export default function TabLayout() {
+  const { theme } = useTheme();
+  
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#8B5CF6',
-        tabBarInactiveTintColor: '#6B7280',
+        tabBarStyle: [styles.tabBar, { 
+          backgroundColor: theme.colors.tabBar,
+          borderTopColor: theme.colors.border 
+        }],
+        tabBarActiveTintColor: theme.colors.tabBarActive,
+        tabBarInactiveTintColor: theme.colors.tabBarText,
         tabBarShowLabel: true,
         tabBarLabelStyle: styles.tabBarLabel,
       }}>
@@ -20,6 +26,15 @@ export default function TabLayout() {
           title: 'Home',
           tabBarIcon: ({ size, color }) => (
             <Home size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="wallet"
+        options={{
+          title: 'Wallet',
+          tabBarIcon: ({ size, color }) => (
+            <Wallet size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -36,15 +51,6 @@ export default function TabLayout() {
                 <Scan size={size} color="white" strokeWidth={2} />
               </LinearGradient>
             </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="wallet"
-        options={{
-          title: 'Wallet',
-          tabBarIcon: ({ size, color }) => (
-            <Wallet size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -72,9 +78,7 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
     paddingTop: 8,
     paddingBottom: 8,
     height: 80,

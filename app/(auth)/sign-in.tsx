@@ -9,14 +9,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react-native';
 import { authService } from '@/lib/auth';
+import { useTheme } from '@/lib/theme';
 
 export default function SignInScreen() {
+  const { theme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -45,7 +48,7 @@ export default function SignInScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -53,25 +56,25 @@ export default function SignInScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Header */}
           <View style={styles.header}>
-            <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
-              style={styles.logoContainer}
-            >
-              <Text style={styles.logoText}>Z</Text>
-            </LinearGradient>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>
+            <Image 
+              source={require('@/assets/images/logo_gradient.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={[styles.title, { color: theme.colors.text }]}>Welcome Back</Text>
+            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
               Sign in to your Zyra account to continue making global payments
             </Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Mail size={20} color="#6B7280" style={styles.inputIcon} />
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
+              <Mail size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Email address"
+                placeholderTextColor={theme.colors.textSecondary}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -80,11 +83,12 @@ export default function SignInScreen() {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Lock size={20} color="#6B7280" style={styles.inputIcon} />
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
+              <Lock size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Password"
+                placeholderTextColor={theme.colors.textSecondary}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -95,9 +99,9 @@ export default function SignInScreen() {
                 onPress={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
-                  <EyeOff size={20} color="#6B7280" />
+                  <EyeOff size={20} color={theme.colors.textSecondary} />
                 ) : (
-                  <Eye size={20} color="#6B7280" />
+                  <Eye size={20} color={theme.colors.textSecondary} />
                 )}
               </TouchableOpacity>
             </View>
@@ -126,7 +130,7 @@ export default function SignInScreen() {
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>Don't have an account? </Text>
             <Link href="/(auth)/sign-up" asChild>
               <TouchableOpacity>
                 <Text style={styles.signUpLink}>Sign Up</Text>
@@ -156,19 +160,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  logoContainer: {
-    width: 80,
+  logoImage: {
+    width: 120,
     height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 24,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: 'white',
-    fontFamily: 'SpaceGrotesk-Bold',
   },
   title: {
     fontSize: 28,

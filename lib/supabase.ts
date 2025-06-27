@@ -4,15 +4,52 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Validate environment variables
-if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('your_supabase_url') || supabaseAnonKey.includes('your_supabase_anon_key')) {
-  console.warn('Supabase environment variables are not properly configured. Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file with real values.');
+// Enhanced validation for production readiness
+const isValidUrl = supabaseUrl && 
+  !supabaseUrl.includes('your-project-id') && 
+  supabaseUrl.startsWith('https://') &&
+  supabaseUrl.includes('.supabase.co');
+
+const isValidKey = supabaseAnonKey && 
+  !supabaseAnonKey.includes('your-supabase-anon-key') &&
+  supabaseAnonKey.length > 100; // Supabase keys are long
+
+if (!isValidUrl || !isValidKey) {
+  console.warn('🔧 Supabase Configuration Required:');
+  console.warn('Please set up your Supabase project and update .env file:');
+  console.warn('1. Go to https://supabase.com and create a new project');
+  console.warn('2. Copy your project URL and anon key');
+  console.warn('3. Update EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env');
+  console.warn('4. Run the database migration from supabase/migrations/');
 }
 
-// Only create client if we have valid configuration
-export const supabase = supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('your_supabase_url') && !supabaseAnonKey.includes('your_supabase_anon_key')
-  ? createClient(supabaseUrl, supabaseAnonKey)
+// Create client with enhanced error handling
+export const supabase = isValidUrl && isValidKey
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        }
+      }
+    })
   : null;
+
+// Environment status helper
+export const getEnvironmentStatus = () => ({
+  supabaseConfigured: isValidUrl && isValidKey,
+  environment: process.env.EXPO_PUBLIC_ENVIRONMENT || 'development',
+  appVersion: process.env.EXPO_PUBLIC_APP_VERSION || '1.0.0',
+  features: {
+    voiceAI: process.env.EXPO_PUBLIC_ENABLE_VOICE_AI === 'true',
+    realPayments: process.env.EXPO_PUBLIC_ENABLE_REAL_PAYMENTS === 'true',
+    advancedFeatures: process.env.EXPO_PUBLIC_ENABLE_ADVANCED_FEATURES === 'true'
+  }
+});
 
 // Database types
 export interface User {
