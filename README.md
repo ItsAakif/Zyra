@@ -11,6 +11,19 @@
   
   **Revolutionary blockchain-powered payment platform with AI voice interface, NFT rewards, and global accessibility.**
   
+  ## 🌟 Live Demos
+  
+  ### 🌐 **Web Demo**
+  **[Try Zyra in your browser →](https://zyra-payments-demo.netlify.app)**
+  
+  ### 📱 **Mobile Demo**  
+  **Scan QR code or open in Expo Go:**
+  ```
+  exp://u.expo.dev/b7990505-d700-4424-91b2-90b56ad33951/group/f64c1873-960f-4245-aed4-a2fcbd8c8618
+  ```
+  
+  ---
+  
   [🚀 Quick Start](#-quick-start) • [📱 Features](#-features) • [🛠️ Development](#️-development) • [📚 Documentation](#-documentation)
   
 </div>
@@ -19,6 +32,7 @@
 
 ## 📋 Table of Contents
 
+- [🌟 Live Demos](#-live-demos)
 - [✨ Features](#-features)
 - [🏗️ Architecture](#️-architecture)
 - [🚀 Quick Start](#-quick-start)
@@ -816,7 +830,7 @@ npm run health-check
 
 ### 🚀 **Ready to revolutionize global payments?**
 
-**[Get Started Now](#-quick-start)** **[Web Demo](https://zyra-payments-demo.netlify.app)** **[Mobile](exp://u.expo.dev/b7990505-d700-4424-91b2-90b56ad33951/group/f64c1873-960f-4245-aed4-a2fcbd8c8618)** 
+**[Get Started Now](#-quick-start)**  
 ---
 
 **Built with ❤️ by Team Synergy**
