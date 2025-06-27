@@ -816,7 +816,7 @@ npm run health-check
 
 ### 🚀 **Ready to revolutionize global payments?**
 
-**[Get Started Now](#-quick-start)** **[Web Demo](https://zyra-payments-demo.netlify.app)** **[Mobile (Expo)](exp://u.expo.dev/b7990505-d700-4424-91b2-90b56ad33951/group/f64c1873-960f-4245-aed4-a2fcbd8c8618)** 
+**[Get Started Now](#-quick-start)** **[Web Demo](https://zyra-payments-demo.netlify.app)** **[Mobile](exp://u.expo.dev/b7990505-d700-4424-91b2-90b56ad33951/group/f64c1873-960f-4245-aed4-a2fcbd8c8618)** 
 ---
 
 **Built with ❤️ by Team Synergy**
